@@ -1,0 +1,318 @@
+---
+title: "Pearson data"
+output:
+  html_document:
+    df_print: paged
+---
+
+Author: "Purba Roy"
+
+---
+
+
+We will need the following R packages.
+
+```{r Setup, message=FALSE}
+# Load standard libraries
+library(tidyverse)
+library(nycflights13)
+```
+
+#### Exploring the NYC Flights Data
+
+Here, we will use the data on all flights that departed NYC (i.e. JFK, LGA or EWR) in 2013. We find this data in the `nycflights13` R package. 
+
+```{r}
+# Load the nycflights13 library which includes data on all
+# lights departing NYC
+data(flights)
+# Note the data itself is called flights, we will make it into a local df
+# for readability
+flights <- tbl_df(flights)
+# Look at the help file for information about the data
+ ?flights
+flights
+#view(flights)
+# summary(flights)
+```
+
+##### Importing and Inspecting the data
+
+
+On inspecting the dataset, it shows that the data was collected from RITA, Bureau of transportation statistics, and it gives us the details about all the flights that departed New York, namely the 3 airports- JFK, LGA and EWR in 2013. The dataset consists of 19 variables where **year**, **month** and **day** depict the exact date on which the flights departed by giving us the year, month and exact day of the journey respectively. The **dep_time** indicates departure time in an Hour-Minute format (HHMM/HMM). The **sched_dep_time** gives us the scheduled departure time in an hour-minute format. **dep_delay** represents the difference between the scheduled departure time and actual departure time in minutes. Similarly **arr_time**, **sched_arr_time** and **arr_delay** are the arrival time, scheduled arrival time and the delay between those two, respectively. The **carrier** variable represents abbreviation of the airline names used for the journey.**Flight** and **tailnum** are the flight number, and the flight tail number. **Origin** and **dest** stand for the airports used for takeoff and destination respectively. **air_time** is the total time of the journey in minutes. **distance** is the total distance between the source and the destination in miles. The scheduled departure time is broken into 2 parts, in hours and minutes. this is captured in the **hour** and **minute** variables respectively. The last variable **time_hour** gives the entire date along with time for the scheduled departure time.
+
+
+```{r}
+head(flights,9)
+
+```
+The head function gives us a basic overview of the data in a tabular format. It showed that there were 336776 flights in total that departed from New York in the year 2013.
+
+```{r}
+str(flights)
+
+```
+I found that the variables- year, month and day are assigned as integers rather than datetime. The only variable that is assigned as datetime is time_hour.
+
+
+```{r}
+summary(flights)
+
+  
+```
+This gave me the distribution of values for each variable (only for int and datetime datatypes), where we find out that there has been a delay in the scheduled departure time of 12.64 minutes in the entire year.
+
+##### Formualting questions on the NYC flighst data
+
+
+* The first question I would ask would be : for which month is the delay the highest (departure + arrival delay), and why. I feel this is interetsing to understand the pattern of flights around the year. Does the weather during a particular affect the delay or is it some other cause? To understand the delay more, Which carrier gives the highest delay? Is there a delay because of a carrier or weather conditions in a month. 
+
+* The second question I found intersting is the relation between source airport and carrier. This will help me understand which airline has the highest frequency of operation in which airport in New york.
+
+##### Exploring Data
+
+For each of the questions we proposed above, we perform an exploratory data analysis designed to address the question. 
+
+For the first question, I have plotted the graph between Month and delay (departure + arrival delay), and it shows that during July, there has been the highest delay. Also, there has been a substantial dip in delay for October- November. This means that there has been less delays during that time. So there is a possiblilty that weather conditions during months, or conditions such as over booking, more flights due to some occassion may affect the delay. 
+```{r}
+
+flights$totalDelay<-flights$dep_delay+flights$arr_delay
+
+ggplot(data = flights)+ 
+  geom_smooth(mapping = aes(x = month, y = totalDelay ), na.rm= TRUE)
+```
+
+To examine the relation between carrier and delay, I mapped a boxplot.This is however a widespread graph, and gives us less information on the median values. 
+
+
+```{r}
+
+ggplot(data = flights) +
+  geom_boxplot(mapping = aes(x = carrier, y = totalDelay), na.rm=TRUE) 
+
+ 
+```
+
+For the 2nd question, I decided to explore the relation between airlines and source airport. To understand that, I plotted facet graphs to understand each relation individually using the facet_wrap function. It showed me that in JFK, Jetblue(B6) is the most used airline compared to other airlines.
+
+```{r}
+
+ggplot(data=flights, aes(x=origin, group=carrier, fill=carrier)) +
+    geom_density(adjust=1.5) +
+    facet_wrap(~carrier) 
+    
+```
+
+I then combined the individual observations to get a better comparitve understanding of the relation. By overlapping the densities, I can posit that there is a higher frequency of carriers departing from JFK comparitively.
+
+```{r}
+ggplot(data=flights, aes(x=origin, group=carrier, fill=carrier)) +
+    geom_density(adjust=1.5, alpha=.4) 
+  
+```
+
+##### Tackling generic questions on the flight dataset.
+
+How many fligts out of NYC are there in the data?
+```{r}
+dim(flights)
+# Ans: 336776   
+# Dim gives us the total number of rows and columns, which give us the number of flights departing NYC. 
+
+
+
+```
+
+ How many NYC airports are included in this data?  Which airports are these?
+ 
+```{r}
+length(unique(flights$origin))
+
+# Ans: 3 NYC airports are included in the data for departure. We used Unique function to get the distinct values of the #departure airport.
+```
+Into how many airports did the airlines fly from NYC in 2013?
+
+```{r}
+
+length(unique(flights$dest))
+# Ans: The airplanes flew into 105 airports. We used the distinct column to fetch the airport details.
+```
+How many flights were there from NYC to Seattle (airport code SEA)?
+
+```{r}
+
+p <- dim(filter (flights, dest == "SEA"))
+p
+
+# Ans: there were 3923 that landed in Seattle. We used the Filter function to extract the results.
+```
+Were the any flights from NYC to Spokane GAG?
+
+```{r}
+GAG <- dim(filter (flights, dest == "GAG"))
+GAG
+# Ans: No, there werren't any, as teh result came to 0.
+```
+
+Checking if there are any destinations that do not look like valid airport codes (i.e. three-letter-all-upper case)?
+
+```{r}
+
+lower <- str_detect(flights$dest, "^[:lower:]+$")
+
+# This is to find all the destination airports with lower case codes
+
+three <- nchar(flights$dest)
+#three[three ==3]
+# this is to find the character length of destination airports so that we can compare it with 3
+
+lower <- str_detect(flights$dest, "^[:lower:]+$")
+
+#length(lower[lower==TRUE])
+# To detect lower case charaters
+
+charc <- grepl("^[A-Za-z]+$", flights$dest, perl = T) 
+#charc
+# To check if the column has only alphabets and no numerical values
+
+DestinationCode <- filter(flights, is.na(flights$dest) & nchar(flights$dest)!=3 & lower ==TRUE & charc==FALSE)
+DestinationCode
+
+# ANS: 0 values with invalid airport codes
+```
+
+
+What is the typical delay of flights in this data?
+
+```{r}
+
+
+
+mean(flights$arr_delay[flights$arr_delay>0], na.rm=TRUE)
+
+#flights %>% summarise(mean(arr_delay), rm.na=TRUE)
+
+#mean(flights$totalDelay[flights$totalDelay>0], na.rm=TRUE)
+
+
+#ANS:  typical arrival delay = 40.3425 minutes
+```
+
+Which ones are the worst three destinations from NYC if we don't like flight delays? 
+```{r}
+
+#sort(flights$arr_delay,decreasing=TRUE)
+
+flights[order(flights$arr_delay, decreasing = TRUE),c("arr_delay","dest")]
+#ANs: HNL, CMH, ORD
+```
+How many flights were there from NYC airports to Portland in 2013?
+```{r}
+p <- dim(filter (flights, dest == "PDX"))
+p
+#1354
+
+```
+How many airlines fly from NYC to Portland?
+```{r}
+#grp_by <- group_by(flights,carrier)
+
+unique(flights$carrier[flights$dest=="PDX"])
+
+
+```
+
+Which are these airlines (find the 2-letter abbreviations)?  How many times did each of these go to Portland?
+```{r}
+
+gr <- group_by(flights, carrier,dest)
+gr
+p <- summarise(gr, count=n())
+p
+
+newdata <- flights[ which(flights$dest=='PDX'
+& flights$carrier =="DL"), ]
+dim(newdata)
+
+#ans: 458
+
+newdata <- flights[ which(flights$dest=='PDX'
+& flights$carrier =="UA"), ]
+dim(newdata)
+
+# ANs: 571
+
+newdata <- flights[ which(flights$dest=='PDX'
+& flights$carrier =="B6"), ]
+dim(newdata)
+
+# Ans: 325
+```
+
+How many different airplanes arrived from each of the three NYC airports to Portland?
+```{r}
+
+p <-unique(flights$origin)
+
+p
+p <-unique(flights$tailnum[flights$dest=="PDX" & flights$origin=="JFK"])
+
+
+length(p)
+p <-unique(flights$tailnum[flights$dest=="PDX" & flights$origin=="EWR"])
+
+
+length(p)
+
+p <-unique(flights$tailnum[flights$dest=="PDX" & flights$origin=="LGA"])
+
+
+length(p)
+
+```
+
+What percentage of flights to Portland were delayed at departure by more than 15 minutes?
+```{r}
+
+p <- filter(flights, dep_delay > 15, dest=="PDX")
+count(p)
+
+l <- filter(flights, dest=="PDX")
+count(l)
+count(p) / count(l)*100
+
+```
+
+
+#### Seasonal Delays. Lets check teh season delays for teh flight dataset.
+```{r}
+
+#graphical:
+
+ggplot(data = flights) + 
+  geom_smooth(mapping = aes(x = month, y = arr_delay, colour=origin))
+
+ggplot(data = flights) +
+  geom_histogram(mapping = aes(x = month), binwidth = 0.5)
+
+#Tabular:
+grp_by <- group_by(flights,month)
+
+#summarise(grp_by,delay = mean(dep_delay, na.rm = TRUE))
+
+
+ggplot(data = flights) +
+  geom_histogram(mapping = aes(x=month, binwidth = 0.1)) +
+  geom_smooth(mapping = aes(x = month, y= arr_delay))
+
+flights %>% 
+  count(month)
+
+head(flights,100)
+summary(flights[order(flights$arr_delay, decreasing = TRUE),c("arr_delay","dest","month")])
+```
+
+
+
+
+
